@@ -32,7 +32,7 @@ type LogApproval struct {
 }
 
 func main() {
-	client, err := ethclient.Dial("https://sepolia.infura.io/v3/758643e59476416e93ab5a4d873b5ccd")
+	client, err := ethclient.Dial("wss://sepolia.infura.io/ws/v3/758643e59476416e93ab5a4d873b5ccd")
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "connection error"))
 		return
