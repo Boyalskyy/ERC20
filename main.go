@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/pkg/errors"
 	"log"
 	"math/big"
 	"strings"
@@ -11,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	_ "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -30,49 +32,46 @@ type LogApproval struct {
 }
 
 func main() {
-	client, err := ethclient.Dial("HTTP://127.0.0.1:7544")
+	client, err := ethclient.Dial("https://sepolia.infura.io/v3/758643e59476416e93ab5a4d873b5ccd")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(errors.Wrap(err, "connection error"))
+		return
+
 	}
 
-	// 0x Protocol (ZRX) token address
-	contractAddress := common.HexToAddress("0xCe9324c83A3338E46c902a8Fc14437c976C7Ed03")
+	fmt.Println("we have a connection")
+
+	contractAddress := common.HexToAddress("0x20ec06104035d0f2F9846960a279AA0eCC298dbB")
 	query := ethereum.FilterQuery{
-		FromBlock: big.NewInt(6383820),
-		ToBlock:   big.NewInt(6383840),
+		FromBlock: big.NewInt(2027094),
+		ToBlock:   big.NewInt(20270940),
 		Addresses: []common.Address{
 			contractAddress,
 		},
 	}
-
-	logs, err := client.FilterLogs(context.Background(), query)
+	contractAbi, err := abi.JSON(strings.NewReader(string(token.MainMetaData.ABI)))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(errors.Wrap(err, "MainABI error"))
+		return
 	}
-
-	contractAbi, err := abi.JSON(strings.NewReader(string(token.MainABI)))
+	logs := make(chan types.Log)
+	sub, err := client.SubscribeFilterLogs(context.Background(), query, logs)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(errors.Wrap(err, "Sub error"))
 	}
-
-	logTransferSig := []byte("Transfer(address,address,uint256)")
-	LogApprovalSig := []byte("Approval(address,address,uint256)")
-	logTransferSigHash := crypto.Keccak256Hash(logTransferSig)
-	logApprovalSigHash := crypto.Keccak256Hash(LogApprovalSig)
-
-	for _, vLog := range logs {
-		fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
-		fmt.Printf("Log Index: %d\n", vLog.Index)
-
-		switch vLog.Topics[0].Hex() {
-		case logTransferSigHash.Hex():
+	for {
+		select {
+		case err := <-sub.Err():
+			log.Fatal(err)
+		case vLog := <-logs:
 			fmt.Printf("Log Name: Transfer\n")
 
-			var transferEvent LogTransfer
+			var transferEvent token.MainTransfer
 
 			err := contractAbi.UnpackIntoInterface(&transferEvent, "Transfer", vLog.Data)
 			if err != nil {
-				log.Fatal(err)
+				log.Fatal(errors.Wrap(err, "UnpackIntoInterface error"))
+				return
 			}
 
 			transferEvent.From = common.HexToAddress(vLog.Topics[1].Hex())
@@ -80,26 +79,52 @@ func main() {
 
 			fmt.Printf("From: %s\n", transferEvent.From.Hex())
 			fmt.Printf("To: %s\n", transferEvent.To.Hex())
-			fmt.Printf("Tokens: %s\n", transferEvent.Tokens.String())
+			fmt.Printf("Tokens: %s\n", transferEvent.Value.String())
 
-		case logApprovalSigHash.Hex():
-			fmt.Printf("Log Name: Approval\n")
-
-			var approvalEvent LogApproval
-
-			err := contractAbi.UnpackIntoInterface(&approvalEvent, "Approval", vLog.Data)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			approvalEvent.TokenOwner = common.HexToAddress(vLog.Topics[1].Hex())
-			approvalEvent.Spender = common.HexToAddress(vLog.Topics[2].Hex())
-
-			fmt.Printf("Token Owner: %s\n", approvalEvent.TokenOwner.Hex())
-			fmt.Printf("Spender: %s\n", approvalEvent.Spender.Hex())
-			fmt.Printf("Tokens: %s\n", approvalEvent.Tokens.String())
+			fmt.Printf("\n\n") // pointer to event log
 		}
-
-		fmt.Printf("\n\n")
 	}
+
+	//logs, err := client.FilterLogs(context.Background(), query)
+	//if err != nil {
+	//	log.Fatal(errors.Wrap(err, "FilterLogs error"))
+	//	return
+	//}
+
+	//contractAbi, err := abi.JSON(strings.NewReader(string(token.MainMetaData.ABI)))
+	//if err != nil {
+	//	log.Fatal(errors.Wrap(err, "MainABI error"))
+	//	return
+	//}
+	//
+	//logTransferSig := []byte("Transfer(address,address,uint256)")
+	//logTransferSigHash := crypto.Keccak256Hash(logTransferSig)
+	//
+	//for _, vLog := range logs {
+	//	fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
+	//	fmt.Printf("Log Index: %d\n", vLog.Index)
+	//
+	//	switch vLog.Topics[0].Hex() {
+	//	case logTransferSigHash.Hex():
+	//		fmt.Printf("Log Name: Transfer\n")
+	//
+	//		var transferEvent token.MainTransfer
+	//
+	//		err := contractAbi.UnpackIntoInterface(&transferEvent, "Transfer", vLog.Data)
+	//		if err != nil {
+	//			log.Fatal(errors.Wrap(err, "UnpackIntoInterface error"))
+	//			return
+	//		}
+	//
+	//		transferEvent.From = common.HexToAddress(vLog.Topics[1].Hex())
+	//		transferEvent.To = common.HexToAddress(vLog.Topics[2].Hex())
+	//
+	//		fmt.Printf("From: %s\n", transferEvent.From.Hex())
+	//		fmt.Printf("To: %s\n", transferEvent.To.Hex())
+	//		fmt.Printf("Tokens: %s\n", transferEvent.Value.String())
+	//
+	//		fmt.Printf("\n\n")
+	//	}
+	//
+	//}
 }
