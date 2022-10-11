@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"fmt"
@@ -39,11 +39,5 @@ func NewDB() (*sqlx.DB, error) {
 }
 
 func RecordingEvents(db *sqlx.DB, from string, to string, amount string, err error) {
-	tx := db.MustBegin()
-	if from == "0x0000000000000000000000000000000000000000" {
-		tx.MustExec("INSERT INTO events (LogName, From, To,Tokens) VALUES ($1, $2, $3,$4)", "Mint", from, to, amount)
-	} else {
-		tx.MustExec("INSERT INTO events (LogName, From, To,Tokens) VALUES ($1, $2, $3,$4)", "Transfer", from, to, amount)
-	}
 
 }

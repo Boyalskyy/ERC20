@@ -9,23 +9,16 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/pkg/errors"
+	"github.com/jmoiron/sqlx"
 	"log"
 	"math/big"
 	"strings"
 )
 
-// LogTransfer ..
-type LogTransfer struct {
-	From   common.Address
-	To     common.Address
-	Tokens *big.Int
-}
-
-func GetEvent() (string, string, string, error) {
+func GetEvent(db *sqlx.DB) {
 	client, err := ethclient.Dial("wss://sepolia.infura.io/ws/v3/758643e59476416e93ab5a4d873b5ccd")
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "connection error")
+		log.Println(err)
 
 	}
 
@@ -41,12 +34,12 @@ func GetEvent() (string, string, string, error) {
 	}
 	contractAbi, err := abi.JSON(strings.NewReader(string(token.ContractsABI)))
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "MainABI error")
+		log.Println(err)
 	}
 	logs := make(chan types.Log)
 	sub, err := client.SubscribeFilterLogs(context.Background(), query, logs)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "Sub error")
+		log.Println(err)
 	}
 	for {
 		select {
@@ -59,7 +52,7 @@ func GetEvent() (string, string, string, error) {
 
 			err := contractAbi.UnpackIntoInterface(&transferEvent, "Transfer", vLog.Data)
 			if err != nil {
-				return "", "", "", errors.Wrap(err, "UnpackIntoInterface error")
+				log.Println(err)
 			}
 
 			transferEvent.From = common.HexToAddress(vLog.Topics[1].Hex())
@@ -70,7 +63,13 @@ func GetEvent() (string, string, string, error) {
 			fmt.Printf("Tokens: %s\n", transferEvent.Value.String())
 
 			fmt.Printf("\n\n") // pointer to event log
-			return transferEvent.From.Hex(), transferEvent.To.Hex(), transferEvent.Value.String(), nil
+			tx := db.MustBegin()
+			if transferEvent.From.Hex() == "0x0000000000000000000000000000000000000000" {
+				tx.MustExec("INSERT INTO events (LogName, From, To,Tokens) VALUES ($1, $2, $3,$4)", "Mint", transferEvent.From.Hex(), transferEvent.To.Hex(), transferEvent.Value.String())
+			} else {
+				tx.MustExec("INSERT INTO events (LogName, From, To,Tokens) VALUES ($1, $2, $3,$4)", "Transfer", transferEvent.From.Hex(), transferEvent.To.Hex(), transferEvent.Value.String())
+			}
+
 		}
 	}
 
