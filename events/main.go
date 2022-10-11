@@ -15,6 +15,13 @@ import (
 	"strings"
 )
 
+// LogTransfer ..
+type LogTransfer struct {
+	From   common.Address
+	To     common.Address
+	Tokens *big.Int
+}
+
 func GetEvent() (string, string, string, error) {
 	client, err := ethclient.Dial("wss://sepolia.infura.io/ws/v3/758643e59476416e93ab5a4d873b5ccd")
 	if err != nil {

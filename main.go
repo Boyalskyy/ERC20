@@ -18,19 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-// LogTransfer ..
-type LogTransfer struct {
-	From   common.Address
-	To     common.Address
-	Tokens *big.Int
-}
 
-// LogApproval ..
-type LogApproval struct {
-	TokenOwner common.Address
-	Spender    common.Address
-	Tokens     *big.Int
-}
 
 func main() {
 	form,to,amount,err:=events.GetEvent()
