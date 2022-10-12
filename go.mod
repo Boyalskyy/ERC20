@@ -5,6 +5,13 @@ go 1.19
 require github.com/ethereum/go-ethereum v1.10.25
 
 require (
+	github.com/Masterminds/squirrel v1.5.3 // indirect
+	github.com/go-chi/chi/v5 v5.0.7 // indirect
+	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
+	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
+)
+
+require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
